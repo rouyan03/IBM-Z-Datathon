@@ -1,0 +1,83 @@
+<?xml version='1.0' encoding='utf-8'?>
+<LegalDataEngineeringOutput>
+  <SourceDataset docId="20-437">
+    <legalDocument lang="en" docId="20-437">
+      <metadata>
+        <title>United States v. Palomar-Santiago</title>
+        <caseName>United States v. Refugio Palomar-Santiago</caseName>
+        <neutralCitation>2021 20-437</neutralCitation>
+        <court name="Supreme Court of the United States"/>
+      </metadata>
+      <bodyContent>
+        <section type="judgement" id="20-437:judgement">
+          <section id="20-437:judgement:introduction">
+            <heading level="1">Introduction</heading>
+            <p id="20-437:judgement:introduction:p1">United States Court of Appeals for the Ninth Circuit -&gt; Writ of &lt;i&gt;certiorari&lt;/i</p>
+          </section>
+          <section id="20-437:judgement:factual_background">
+            <heading level="1">Factual background</heading>
+            <p id="20-437:judgement:factual_background:p1">Refugio Palomar-Santiago, a Mexican national, was granted permanent resident status in the United States in 1990. In 1991, he was convicted of a felony DUI in California, and he was subsequently deported because a DUI is a “crime of violence” under 18 U.S.C. § 16, and felony DUI is an aggravated felony for purposes of 8 U.S.C. § 1101(a)(43). Three years later, the U.S. Court of Appeals for the Ninth Circuit decided in United States v. Trinidad-Aquino, 259 F.3d 1140 (9th Cir. 2001), that a DUI is not a crime of violence and later held that classification to apply retroactively. United States v. Aguilera-Rios, 769 F.3d 626 (9th Cir. 2013).</p>
+            <p id="20-437:judgement:factual_background:p2">Palomar-Santiago returned to live in the United States, this time without authorization. He was indicted for illegal reentry after deportation under 8 U.S.C. § 1326. He moved to dismiss the indictment under 8 U.S.C. § 1326(d), which requires a district court to dismiss a § 1326 indictment if the defendant proves (1) he exhausted any administrative remedies that may have been available to seek relief against the order; (2) he was deprived of the opportunity for judicial review at the deportation hearing; and (3) that the deportation order was fundamentally unfair. However, under Ninth Circuit precedent, a defendant does not need to prove the first two elements if he can show the crime underlying the original removal was improperly characterized as an aggravated felony and does not need to show the third element if he can show the removal should not have occurred at all.</p>
+            <p id="20-437:judgement:factual_background:p3">The district court held that Palomar-Santiago met his burden in showing his crime was improperly characterized as an aggravated felony and that he was wrongfully removed from the United States. On appeal, the federal government disputed that circuit precedent required the result the district court reached but argued that the precedent is wrong. Lacking authority to overturn circuit precedent, the Ninth Circuit panel affirmed without addressing the merits of the government’s claims.</p>
+          </section>
+          <section id="20-437:judgement:questions">
+            <heading level="1">Questions Presented</heading>
+            <p id="20-437:judgement:questions:p1">Is a defendant who has been charged with unlawful reentry into the United States after removal automatically entitled to the defense of invalid removal if he was removed for a crime that would not be considered a removable offense under current law in that circuit?</p>
+          </section>
+          <section id="20-437:judgement:holding">
+            <heading level="1">Holding / Conclusion</heading>
+            <p id="20-437:judgement:holding:p1">A defendant seeking dismissal of a prior deportation order must prove each statutory requirement for bringing such a collateral attack. Justice Sonia Sotomayor authored the unanimous opinion of the Court.</p>
+            <p id="20-437:judgement:holding:p2">Section 1326(d) requires that defendants charged with unlawful reentry “may not” challenge their underlying removal orders “unless” they “demonstrat[e]” each of three conditions. The Ninth Circuit’s interpretation to the contrary—that the first two elements are not required if the noncitizen was removed for an offense that should not have rendered him removable—is incompatible with the text of that provision. The first element, exhaustion of administrative remedies, exists “precisely so noncitizens can challenge the substance of immigration judges’ decisions.” Additionally, all of the requirements apply regardless of whether the defendant alleges the removal order was procedurally flawed or substantively invalid.</p>
+          </section>
+          <section id="20-437:judgement:decision">
+            <heading level="1">Decision</heading>
+            <p id="20-437:judgement:decision:p1">A defendant seeking dismissal of a prior deportation order must prove each statutory requirement for bringing such a collateral attack.</p>
+            <p id="20-437:judgement:decision:p_votes">Majority: 9; Minority: 0; Winning party: United States</p>
+          </section>
+        </section>
+      </bodyContent>
+    </legalDocument>
+  </SourceDataset>
+  <QAPairsFiltered caseId="20-437" caseName="United States v. Refugio Palomar-Santiago">
+    <Pair>
+      <Question>What are the three specific statutory requirements under 8 U.S.C. § 1326(d) that a defendant must prove to successfully move to dismiss an indictment for illegal reentry based on the invalidity of the underlying deportation order?</Question>
+      <Answer>The defendant must prove that (1) he exhausted any administrative remedies that may have been available; (2) he was deprived of the opportunity for judicial review at the deportation hearing; and (3) that the deportation order was fundamentally unfair.</Answer>
+    </Pair>
+    <Pair>
+      <Question>What was the specific conviction that led to Palomar-Santiago's 1991 deportation, and how was that conviction classified at the time to justify the removal under federal law?</Question>
+      <Answer>Palomar-Santiago was convicted of a felony DUI in California. At the time, it was classified as a "crime of violence" under 18 U.S.C. § 16, and a felony DUI was classified as an "aggravated felony" for the purposes of 8 U.S.C. § 1101(a)(43).</Answer>
+    </Pair>
+    <Pair>
+      <Question>What was the central flaw the Supreme Court identified in the Ninth Circuit's precedent regarding the requirements for collaterally attacking a prior deportation order under Section 1326(d)?</Question>
+      <Answer>The Supreme Court found the Ninth Circuit’s interpretation—which waived the first two statutory elements if the crime was improperly characterized as an aggravated felony—was incompatible with the text of Section 1326(d), which mandates that defendants "may not" challenge the order "unless" they "demonstrat[e]" each of the three conditions.</Answer>
+    </Pair>
+    <Pair>
+      <Question>What legal development in the Ninth Circuit created the potential for Palomar-Santiago to collaterally attack his 1991 deportation order, and what two cases established this change?</Question>
+      <Answer>The Ninth Circuit precedent changed its classification of a DUI, holding that it is not a "crime of violence" and later holding that classification to apply retroactively. This change was established in United States v. Trinidad-Aquino, 259 F.3d 1140 (2001), and United States v. Aguilera-Rios, 769 F.3d 626 (2013).</Answer>
+    </Pair>
+    <Pair>
+      <Question>What was the reason provided by the Supreme Court for why the exhaustion of administrative remedies requirement in Section 1326(d) is essential, even if a noncitizen challenges the underlying crime?</Question>
+      <Answer>The Court noted that the exhaustion requirement exists "precisely so noncitizens can challenge the substance of immigration judges’ decisions," implying it is required whether the challenge is procedural or substantive.</Answer>
+    </Pair>
+    <Pair>
+      <Question>What was the ultimate determination by the District Court regarding Palomar-Santiago's claims under the prevailing Ninth Circuit precedent, and what happened on appeal to the Ninth Circuit?</Question>
+      <Answer>The District Court held that Palomar-Santiago met his burden by showing his crime was improperly characterized as an aggravated felony and that he was wrongfully removed. The Ninth Circuit panel affirmed, but explicitly without addressing the merits of the government’s claims because it lacked authority to overturn circuit precedent.</Answer>
+    </Pair>
+    <Pair>
+      <Question>What was the holding of the Supreme Court regarding the application of the Section 1326(d) requirements to different types of removal order challenges?</Question>
+      <Answer>The Court held that all of the requirements of Section 1326(d) apply regardless of whether the defendant alleges the removal order was procedurally flawed or substantively invalid.</Answer>
+    </Pair>
+    <Pair>
+      <Question>What were the two primary legal arguments the federal government made before the Ninth Circuit panel?</Question>
+      <Answer>The federal government disputed that circuit precedent required the result the district court reached, and it also argued that the circuit precedent itself was wrong.</Answer>
+    </Pair>
+    <Pair>
+      <Question>What specific federal criminal statute was Palomar-Santiago charged with violating when he returned to the United States without authorization?</Question>
+      <Answer>He was indicted for illegal reentry after deportation under 8 U.S.C. § 1326.</Answer>
+    </Pair>
+    <Pair>
+      <Question>What was the result of the Supreme Court's decision for the parties involved, including the vote count and the identity of the justice who authored the opinion?</Question>
+      <Answer>The United States was the winning party, with the Court holding that a defendant must prove each statutory requirement of 8 U.S.C. § 1326(d). The decision was unanimous (9-0), authored by Justice Sonia Sotomayor.</Answer>
+    </Pair>
+  </QAPairsFiltered>
+</LegalDataEngineeringOutput>
