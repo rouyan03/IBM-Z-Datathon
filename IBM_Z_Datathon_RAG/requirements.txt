@@ -1,0 +1,8 @@
+chromadb
+faiss-cpu
+requests
+lxml
+numpy
+transformers
+torch
+accelerate
