@@ -1,0 +1,4 @@
+generate_embeddings works only for the QA pairs dataset
+eunomia_db only stores the vector embeddings from that...
+
+or maybe I can use it for both idk
