@@ -4,7 +4,7 @@
 
 # Davin's GUI ignore files
 **/secrets.toml
-**/ibm_z
+**/ibm_z_venv
 * the ibm one is just the virtual environment I have up for the project.
 
 
