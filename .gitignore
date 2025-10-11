@@ -2,6 +2,11 @@
 **/.DS_Store
 
 
+# Davin's GUI ignore files
+**/secrets.toml
+**/ibm_z
+* the ibm one is just the virtual environment I have up for the project.
+
 
 
 
