@@ -5,16 +5,6 @@ from ollama import embeddings
 client = PersistentClient(path="./eunomia_db")
 collection = client.get_or_create_collection("data_and_QAs")
 
-# Use Ollama to generate embeddings
-def get_embedding(text): 
-    response = embeddings(
-        model='nomic-embed-text',
-        prompt=text
-    )
-    r = response['embedding']
-    # print(r)
-    return r
-
 for filename in os.listdir('./QApairs_dataset'):
     with open(os.path.join('./QApairs_dataset', filename)) as f:
         content = f.read()
