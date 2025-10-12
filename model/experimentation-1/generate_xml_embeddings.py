@@ -20,33 +20,34 @@ if root.tag.lower() != "cases":
     raise ValueError("Expected root element <Cases>")
 
 # --- Iterate over each <Case> element ---
-for case in root.findall("Case"):
-    name = case.get("name")
-    slug = case.get("slug")
+for case in (root.findall(".//Paragraph") + root.findall(".//Issue") + root.findall(".//Decision") + root.findall(".//Votes")):
+    id = case.get("id")
+    if id is None:
+        id = case.get("name")
 
     # Combine all text inside this <Case> element
     content = ET.tostring(case, encoding="unicode", method="xml")
 
     # Optionally chunk large cases (for models with token limits)
-    chunks = [content[i:i + 1000] for i in range(0, len(content), 1000)]
+    # chunks = [content[i:i + 1000] for i in range(0, len(content), 1000)]
     
     # Collect embeddings for each chunk
-    embeddings_list = []
-    for chunk in chunks:
-        emb = embeddings(model="nomic-embed-text", prompt=chunk)
-        if not emb:
-            print(f"⚠️ Skipping failed chunk in case: {name}")
-            continue
-        embeddings_list.extend(emb)
+    # embeddings_list = []
+    # for chunk in chunks:
+    emb = embeddings(model="nomic-embed-text", prompt=content)['embedding']
+        # if not emb:
+        #     print(f"⚠️ Skipping failed chunk in case: {id}")
+        #     continue
+        # embeddings_list.extend(emb)
     
     # --- Save to Chroma ---
     collection.add(
         documents=[content],
-        ids=[slug],
-        embeddings=[embeddings_list]
+        ids=[id],
+        embeddings=[emb]
     )
 
-    print(f"✅ Added embeddings for case: {name}")
+    print(f"✅ Added embeddings for case: {id}")
 
 print("🎉 All cases processed and embeddings stored.")
 
