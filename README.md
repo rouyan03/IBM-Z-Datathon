@@ -18,6 +18,10 @@ cd into IBM_Z_Datathon_RAG and run main.py
 or to view the streamlit app locally, run "streamlit run website/app.py" from the top directory.
 Note you will not be authenticated as secrets.toml has not been pushed, with details like OAuth setup through Google.
 
+here is also a link to a published version of the final website, hosted on Streamlit Community Cloud.
+https://ibm-z-25-eunomia-ai.streamlit.app/
+
+
 ---
 
 Datasets on HuggingFace:
