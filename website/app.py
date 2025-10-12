@@ -1,7 +1,7 @@
 import streamlit as st
 import re
 from openai import OpenAI
-
+from main import RAGSystem
 
 # Set OpenAI API key from Streamlit secrets
 client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
@@ -70,13 +70,11 @@ def login_screen():
     st.header("this app is private. you may only log in as a pre-approved user.")
     st.subheader("please log in")
     st.button("Google Login", on_click=st.login)
-    
-    
+
+
 if "messages" not in st.session_state:
     st.session_state.messages = []
-    #instead of [], this should call the history from the database
-    
-    
+
 system_prompt = {
     "role": "system",
     "content": """
@@ -99,42 +97,41 @@ Only include one <think> section and one <answer> section per reply.
 Do not include any other text outside these tags.
     """
 }
-    
+
 if not st.user.is_logged_in:
     login_screen()
 else:
+    rag = RAGSystem(max_turns=5, xml_file="./normalized_enhanced.xml") if "rag" not in st.session_state else st.session_state["rag"]
+    st.session_state["rag"] = rag
     st.header(f"Welcome, {st.user.name}")
     st.button("Log Out", on_click=st.logout)
-    
-    
+
+    # Display chat history
     for message in st.session_state.messages:
         with st.chat_message(message["role"]):
             st.html(message["content"])
-            
+
     if prompt := st.chat_input("Ask me anything"):
+        # Add user message to history
         with st.chat_message("user"):
-            st.html(prompt)
+            st.markdown(prompt)
         st.session_state.messages.append({"role": "user", "content": prompt})
+
+        # Prepare chat history for RAG (exclude formatting, just raw content)
+        chat_history_for_rag = [
+            {"role": msg["role"], "content": msg["content"]}
+            for msg in st.session_state.messages[:-1]  # Exclude the current message
+        ]
+
         with st.chat_message("assistant"):
-            stream = client.chat.completions.create(
-                model=st.session_state["openai_model"],
-                messages=[
-                    system_prompt,
-                    *[{"role": m["role"], "content": m["content"]}
-                    for m in st.session_state.messages],
-                ],
-                stream=True,
+            # Pass chat history to RAG system
+            response = st.session_state["rag"].query(
+                user_query=prompt,
+                chat_history=chat_history_for_rag
             )
-            response = ""
-
-            for chunk in stream:
-                delta = chunk.choices[0].delta
-                if delta.content is not None:
-                    response += delta.content
-
             st.html(format_llm_output(response))
+
         st.session_state.messages.append({"role": "assistant", "content": response})
-    
     
 
    
