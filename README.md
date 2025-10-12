@@ -13,6 +13,12 @@ The problem we're addressing is the lack of affordable legal assistance for many
 Our solution is to build an AI-powered legal assistant using Retrieval-Augmented Generation (RAG) system using foundation models (e.g. Qwen, Deepseek, Kimi, etc.). This system will combine a large language model with a legal document database, enabling it to search statutes, case law, and regulations to answer users’ questions with relevant evidence. By fine-tuning the model on legal texts and Q&A data, we ensure it understands legal context and terminology. We try to enable the assistant to accurately cite relevant law codes in its responses, grounding its advice via reference real-documents rather than guesswork (i.e. LLM hallucination). We aim for the model to also be capable of multi-step reasoning – conducting multi-turn searches to refine answers for complex queries. Moreover, we also plan to apply RLHF (reinforcement-learning by human-feedback) to further optimise the system's retrieval strategy and answer accuracy. By prioritising factual accuracy and providing real-document citations, our assistant will , ideally in most cases, reliably guide users through questions like “How do I appeal a denied insurance claim?” or “What are my rights after a traffic accident?”, etc. effectively empowering undeserved populations who cannot afford traditional legal help, which are expensive and exclusive.
 
 ---
+## usage of code
+cd into IBM_Z_Datathon_RAG and run main.py
+or to view the streamlit app locally, run "streamlit run website/app.py" from the top directory.
+Note you will not be authenticated as secrets.toml has not been pushed, with details like OAuth setup through Google.
+
+---
 
 Datasets on HuggingFace:
 - Standardised XML source Data: https://huggingface.co/datasets/Xixi679/SupremeCourtJudgementCase_Data/tree/main
