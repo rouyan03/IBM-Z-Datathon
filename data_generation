@@ -1,0 +1,478 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+import os, re, json
+from typing import List, Dict, Any, Optional
+from datetime import datetime
+
+# ========= user settings =========
+OPENROUTER_API_KEY_INLINE = ""  # paste "sk-or-v1-..." here, or set env var instead
+WORKSPACE_DIR = "/Users/rouyan/MSc-Statistics/IBM Datathon/synthetic-data-generation/xml-format-processing/"
+
+# models / endpoint
+OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
+MODEL_GENERATION = "google/gemini-2.5-pro"
+MODEL_FILTRATION = "google/gemini-2.5-flash"
+MODEL_JUDGE      = "google/gemini-2.5-flash"
+
+# ========= prompts =========
+GENERATION_PROMPT = """
+PHASE 1: QA Generation (Initial Draft)
+Instruction: Generate exactly 10 unique QA pairs based ONLY on the LAW CASE TEXT.
+
+Output format (STRICT JSON):
+{"qa_pairs":[{"question":"...","answer":"..."}, {"question":"...","answer":"..."}, ... 10 items total ...]}
+
+LAW CASE TEXT:
+{LAW_CASE_TEXT}
+"""
+
+FILTRATION_PROMPT = """
+PHASE 2: QA Filtration (Quality Gate)
+Instruction: Evaluate and revise to ensure all 10 pairs meet the criteria.
+
+Return ONLY STRICT JSON in this exact format:
+{"qa_pairs":[{"question":"...","answer":"..."}, {"question":"...","answer":"..."}, ... 10 items total ...]}
+
+CRITERIA:
+1) Realistic ($500/hr lawyer caliber)
+2) Requires synthesis/inference (not a single isolated fact)
+3) Variety (facts, procedural, holding/rationale, opinions, final decision)
+
+LAW CASE TEXT:
+{LAW_CASE_TEXT}
+
+RAW QA PAIRS:
+{RAW_QA_PAIRS}
+"""
+
+TRACE_PROMPT = """
+Construct a TOOL TRACE (observable steps only) to support the QA, based ONLY on the case text.
+
+Rules:
+- Return STRICT JSON with fields: tools (array), answer (string), sources (array).
+- Allowed tools ONLY:
+  - search_keyword: {"query": string, "num": int}
+  - semantic_search: {"query": string, "top_k": int}
+  - read_document_part: {"part_id": string}
+- Use 1–3 tools total, each relevant to verifying the answer.
+- 'answer' must be the final short answer (no plans / no chain-of-thought).
+- 'sources' should contain document part IDs if present; if not, short quotes from the case text.
+- Return ONLY the JSON object.
+
+CASE TEXT:
+---
+{CASE_TEXT}
+---
+
+QUESTION:
+{QUESTION}
+
+ANSWER:
+{ANSWER}
+
+Return STRICT JSON:
+{
+  "tools": [
+    {"name":"read_document_part","args":{"part_id":"... if known, else \"\""}},
+    {"name":"search_keyword","args":{"query":"<compact query>", "num":3}}
+  ],
+  "answer": "<final short answer>",
+  "sources": ["<section-id-or-quote-1>", "<section-id-or-quote-2>"]
+}
+"""
+
+JUDGE_PROMPT = """
+You are a strict legal grader. Decide whether the ANSWER is correct given the QUESTION and the CASE TEXT. Ignore style and tool choice.
+
+Return STRICT JSON:
+{
+  "verdict": "correct" | "incorrect",
+  "reasons": "brief explanation",
+  "reward": 1 | -1
+}
+
+Rules:
+- If the answer contradicts the case text or invents facts -> incorrect, -1.
+- If the answer matches the case text -> correct, +1.
+- If uncertain -> incorrect, -1.
+
+CASE TEXT:
+---
+{CASE_TEXT}
+---
+
+QUESTION:
+{QUESTION}
+
+ANSWER:
+{ANSWER}
+"""
+
+# ========= context control (avoid context-limit errors) =========
+MAX_INPUT_CHARS = 120_000  # hard cap per LLM request
+
+def clean_legal_xml(xml_str: str) -> str:
+    """
+    Keep key sections and strip tags/whitespace. Truncate to MAX_INPUT_CHARS.
+    """
+    keep = ("judgement", "holding", "decision", "factual_background", "questions")
+    sections = re.findall(r"<section[^>]*>[\s\S]*?</section>", xml_str)
+    chunks = []
+    for sec in sections:
+        if any(k in sec for k in keep):
+            s = re.sub(r"<[^>]+>", " ", sec)
+            s = re.sub(r"\s+", " ", s).strip()
+            if s:
+                chunks.append(s)
+    if not chunks:
+        s = re.sub(r"<[^>]+>", " ", xml_str)
+        s = re.sub(r"\s+", " ", s).strip()
+        chunks.append(s)
+    txt = "\n".join(chunks)
+    return txt[:MAX_INPUT_CHARS]
+
+def safe_prompt(text: str, cap: int = MAX_INPUT_CHARS) -> str:
+    return (text or "")[:cap]
+
+# ========= LLM client =========
+def _get_api_key() -> Optional[str]:
+    k="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"
+    return k
+
+class _RealClient:
+    def __init__(self, api_key: str):
+        from openai import OpenAI
+        self.client = OpenAI(
+            base_url=OPENROUTER_BASE_URL,
+            api_key=api_key,
+            default_headers={"HTTP-Referer":"https://local-script","X-Title":"Legal QA Synthetic Pipeline"},
+        )
+    def chat(self, model: str, system: str, user: str, force_json: bool) -> Optional[str]:
+        kwargs = {
+            "model": model,
+            "messages": [{"role":"system","content":system},{"role":"user","content":user}],
+            "temperature": 0.1,
+        }
+        if force_json:
+            kwargs["response_format"] = {"type":"json_object"}
+        try:
+            resp = self.client.chat.completions.create(**kwargs)
+            return (resp.choices[0].message.content or "").strip()
+        except Exception as e:
+            print(f"⚠️ OpenRouter error ({model}): {e}")
+            return None
+
+class _MockClient:
+    def chat(self, model: str, system: str, user: str, force_json: bool) -> Optional[str]:
+        if '"qa_pairs"' in user and "RAW QA PAIRS" not in user:
+            qa = [{"question": f"Mock Q{i+1}: What is key point {i+1}?",
+                   "answer": f"Mock A{i+1}: Based on the case text, key point {i+1} is ..."} for i in range(10)]
+            return json.dumps({"qa_pairs": qa})
+        if '"qa_pairs"' in user and "RAW QA PAIRS" in user:
+            m = re.search(r'RAW QA PAIRS:\s*(\{.*\})', user, flags=re.S)
+            if m:
+                try:
+                    raw = json.loads(m.group(1))
+                    return json.dumps({"qa_pairs": raw.get("qa_pairs") or raw})
+                except Exception:
+                    pass
+            return json.dumps({"qa_pairs":[{"question":"Mock filtered Q","answer":"Mock filtered A"}]*10})
+        if '"tools"' in user and '"answer"' in user and '"sources"' in user:
+            return json.dumps({
+                "tools":[
+                    {"name":"read_document_part","args":{"part_id":""}},
+                    {"name":"search_keyword","args":{"query":"mock query", "num":3}}
+                ],
+                "answer":"(Mock) Final answer consistent with QA.",
+                "sources":["(mock) section id or quote"]
+            })
+        if '"verdict"' in user and '"reward"' in user:
+            return json.dumps({"verdict":"correct","reasons":"(Mock) matches text.","reward":1})
+        return "{}"
+
+def _get_client():
+    key = _get_api_key()
+    if key:
+        print(f"🔑 Using OpenRouter key (len={len(key)}).")
+        try:
+            return _RealClient(key)
+        except Exception as e:
+            print(f"ℹ️ Falling back to MOCK MODE: {e}")
+            return _MockClient()
+    print("ℹ️ MOCK MODE (no valid OPENROUTER_API_KEY).")
+    return _MockClient()
+
+CLIENT = _get_client()
+
+def call_llm(model: str, system: str, user: str, *, force_json: bool) -> Optional[str]:
+    return CLIENT.chat(model, system, user, force_json)
+
+# ========= helpers =========
+def parse_array_or_wrapped(s: str) -> List[Dict[str, Any]]:
+    if not s or not isinstance(s, str): return []
+    def _try(txt):
+        try:
+            data = json.loads(txt)
+            if isinstance(data, list): return data
+            if isinstance(data, dict):
+                if "qa_pairs" in data and isinstance(data["qa_pairs"], list): return data["qa_pairs"]
+                for v in data.values():
+                    if isinstance(v, list): return v
+        except Exception: return None
+    data = _try(s)
+    if data is not None: return data
+    fence = re.sub(r"^```(?:json)?\s*|\s*```$", "", s.strip(), flags=re.I)
+    data = _try(fence)
+    if data is not None: return data
+    m = re.search(r"\[[\s\S]*\]", s)
+    if m:
+        data = _try(m.group(0))
+        if data is not None: return data
+    return []
+
+def normalize_tools_in_trace(obj: Dict[str, Any]) -> Dict[str, Any]:
+    allowed = {"search_keyword", "semantic_search", "read_document_part"}
+    tools = []
+    for t in (obj.get("tools") or [])[:3]:
+        if not isinstance(t, dict): continue
+        name = str(t.get("name","")).strip().lower()
+        if name not in allowed: continue
+        args = t.get("args") or t.get("inputs") or {}
+        if not isinstance(args, dict): args = {}
+        if name == "search_keyword":
+            q = str(args.get("query","")).strip()
+            num = args.get("num", 3)
+            try: num = int(num)
+            except: num = 3
+            args = {"query": q, "num": max(1, min(num, 20))}
+        elif name == "semantic_search":
+            q = str(args.get("query","")).strip()
+            top_k = args.get("top_k", 3)
+            try: top_k = int(top_k)
+            except: top_k = 3
+            args = {"query": q, "top_k": max(1, min(top_k, 20))}
+        elif name == "read_document_part":
+            pid = str(args.get("part_id","")).strip()
+            args = {"part_id": pid}
+        tools.append({"name": name, "args": args})
+    if not tools:
+        tools = [{"name":"search_keyword","args":{"query":"case key facts","num":3}}]
+    obj["tools"] = tools
+    obj["answer"] = str(obj.get("answer","")).strip()
+    src = obj.get("sources", [])
+    obj["sources"] = [str(s) for s in src] if isinstance(src, list) else []
+    return obj
+
+def to_transcript(trace: Dict[str, Any]) -> List[str]:
+    out = []
+    for t in (trace.get("tools") or [])[:3]:
+        out.append(f"<tool>{json.dumps({'name': t['name'], 'args': t['args']}, ensure_ascii=False)}</tool>")
+    out.append(f"<answer>{trace.get('answer','')}</answer>")
+    sources = trace.get("sources", [])
+    if sources:
+        out.append("<sources>" + "".join(f"<source>{s}</source>" for s in sources) + "</sources>")
+    return out
+
+# ========= pipeline steps =========
+def load_case_text(path: str) -> str:
+    if not os.path.exists(path):
+        print(f"⚠️ File not found: {path}. Using placeholder case text.")
+        return "<case><facts>Placeholder facts.</facts><procedural>Placeholder procedural.</procedural><holding>Placeholder holding.</holding></case>"
+    with open(path, "r", encoding="utf-8") as f:
+        return f.read()
+
+def generate_and_filter(case_text: str) -> List[Dict[str, str]]:
+    case_text = clean_legal_xml(case_text)
+    gen = call_llm(
+        MODEL_GENERATION,
+        "You are a legal data engineer. Output ONLY valid JSON per the schema.",
+        GENERATION_PROMPT.replace("{LAW_CASE_TEXT}", safe_prompt(case_text)),
+        force_json=True
+    )
+    if not gen:
+        return []
+    fil = call_llm(
+        MODEL_FILTRATION,
+        "You are a legal QA evaluator. Output ONLY valid JSON per the schema.",
+        FILTRATION_PROMPT.replace("{LAW_CASE_TEXT}", safe_prompt(case_text[:60000])).replace("{RAW_QA_PAIRS}", safe_prompt(gen, 60000)),
+        force_json=True
+    )
+    if not fil:
+        return []
+    arr = parse_array_or_wrapped(fil)
+    out: List[Dict[str, str]] = []
+    for item in arr:
+        q = str(item.get("question","")).strip()
+        a = str(item.get("answer","")).strip()
+        if q and a:
+            out.append({"question": q, "answer": a})
+    return out[:10]
+
+def pick_relevant_excerpt(case_text: str, q: str) -> str:
+    case_text = clean_legal_xml(case_text)
+    paras = re.split(r"(?<=\.)\s+", case_text)
+    kw = [w.lower() for w in re.findall(r"[A-Za-z]{4,}", q)]
+    scored = []
+    for p in paras:
+        c = sum(p.lower().count(w) for w in kw)
+        if c: scored.append((c, p))
+    scored.sort(reverse=True)
+    excerpt = "\n".join([p for _, p in scored[:3]]) or "\n".join(paras[:3])
+    return safe_prompt(excerpt, 6000)
+
+def build_trace(case_text: str, q: str, a: str) -> Dict[str, Any]:
+    excerpt = pick_relevant_excerpt(case_text, q)
+    raw = call_llm(
+        MODEL_FILTRATION,
+        "Return ONLY JSON with keys: tools(array), answer(string), sources(array).",
+        TRACE_PROMPT.replace("{CASE_TEXT}", excerpt).replace("{QUESTION}", q).replace("{ANSWER}", a),
+        force_json=True
+    )
+    if not raw:
+        return {"tools":[{"name":"search_keyword","args":{"query":q,"num":3}}],"answer":a,"sources":[]}
+    try:
+        obj = json.loads(raw)
+        return normalize_tools_in_trace(obj)
+    except Exception:
+        return {"tools":[{"name":"search_keyword","args":{"query":q,"num":3}}],"answer":a,"sources":[]}
+
+def judge(case_text: str, q: str, a: str) -> Dict[str, Any]:
+    excerpt = pick_relevant_excerpt(case_text, q)
+    raw = call_llm(
+        MODEL_JUDGE,
+        "Return ONLY JSON: {verdict, reasons, reward}.",
+        JUDGE_PROMPT.replace("{CASE_TEXT}", excerpt).replace("{QUESTION}", q).replace("{ANSWER}", a),
+        force_json=True
+    )
+    if not raw:
+        return {"verdict":"incorrect","reasons":"no judge response","reward":-1}
+    try:
+        obj = json.loads(raw)
+        verdict = "correct" if obj.get("verdict") == "correct" else "incorrect"
+        reward = 1 if obj.get("reward") == 1 else -1
+        reasons = str(obj.get("reasons","")).strip()
+        return {"verdict":verdict,"reasons":reasons,"reward":reward}
+    except Exception as e:
+        return {"verdict":"incorrect","reasons":f"parse error: {e}","reward":-1}
+
+# ========= HF (list first, then fetch 1-by-1) =========
+from huggingface_hub import list_repo_files, hf_hub_download
+HF_DATASET_ID = "Xixi679/SupremeCourtJudgementCase_Data"
+
+def fetch_hf_filenames(max_files: int = 10) -> List[str]:
+    files = list_repo_files(repo_id=HF_DATASET_ID, repo_type="dataset")
+    xml_names = sorted([f for f in files if f.lower().endswith(".xml")])
+    return xml_names[:max_files]
+
+# ========= per-file processing =========
+def process_one_file(file_path: str) -> Dict[str, Any]:
+    raw_xml = load_case_text(file_path)
+    qa_pairs = generate_and_filter(raw_xml)
+    if not qa_pairs:
+        # stable structure even if generation fails
+        qa_pairs = [{"question":"What is the central dispute?", "answer":"See facts."}]
+        while len(qa_pairs) < 10:
+            i = len(qa_pairs)+1
+            qa_pairs.append({"question":f"Mock question {i}?", "answer":f"Mock answer {i}."})
+
+    rows = []
+    for idx, qa in enumerate(qa_pairs, 1):
+        q, a = qa["question"], qa["answer"]
+        trace = build_trace(raw_xml, q, a)
+        evaluation = judge(raw_xml, q, trace.get("answer") or a)
+        rows.append({
+            "row_index": idx,
+            "question": q,
+            "model_answer": trace.get("answer") or a,
+            "tools": trace.get("tools") or [],
+            "sources": trace.get("sources") or [],
+            "evaluation": evaluation
+        })
+    return {
+        "file": os.path.basename(file_path),
+        "absolute_path": os.path.abspath(file_path),
+        "generated_at": datetime.now().isoformat(timespec="seconds"),
+        "rows": rows
+    }
+
+def write_jsonl_line(fp, obj):
+    fp.write(json.dumps(obj, ensure_ascii=False))
+    fp.write("\n")
+
+def jsonl_to_json_array(jsonl_path: str, out_json_path: str):
+    with open(jsonl_path, "r", encoding="utf-8") as src, open(out_json_path, "w", encoding="utf-8") as dst:
+        dst.write("{\n")
+        dst.write(f'  "source": "huggingface://{HF_DATASET_ID}",\n')
+        dst.write(f'  "model_generation": "{MODEL_GENERATION}",\n')
+        dst.write(f'  "model_filtration": "{MODEL_FILTRATION}",\n')
+        dst.write(f'  "model_judge": "{MODEL_JUDGE}",\n')
+        dst.write('  "items": [\n')
+        first = True
+        for line in src:
+            line = line.strip()
+            if not line:
+                continue
+            if not first:
+                dst.write(",\n")
+            dst.write("    " + line)
+            first = False
+        dst.write("\n  ]\n")
+        dst.write("}\n")
+
+# ========= main (fetch-1 → process → append) =========
+def main():
+    max_files = 10
+    os.makedirs(WORKSPACE_DIR, exist_ok=True)
+
+    print(f"[{datetime.now().isoformat(timespec='seconds')}] Listing up to {max_files} XML names on HF…")
+    names = fetch_hf_filenames(max_files=max_files)
+    if not names:
+        print("⚠️ No XML filenames found on Hugging Face.")
+        return
+
+    tmp_jsonl = os.path.join(WORKSPACE_DIR, f"aggregate_tmp_{datetime.now().strftime('%Y%m%d_%H%M%S')}.jsonl")
+    out_json  = os.path.join(WORKSPACE_DIR, f"aggregated_hf_{len(names)}files_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json")
+
+    processed = 0
+    with open(tmp_jsonl, "w", encoding="utf-8") as fp:
+        for i, name in enumerate(names, 1):
+            # download one file
+            try:
+                local_path = hf_hub_download(
+                    repo_id=HF_DATASET_ID,
+                    repo_type="dataset",
+                    filename=name
+                )
+            except Exception as e:
+                print(f"⚠️ Download failed for {name}: {e}")
+                write_jsonl_line(fp, {
+                    "file": name,
+                    "error": f"download failed: {e}",
+                    "generated_at": datetime.now().isoformat(timespec="seconds")
+                })
+                continue
+
+            # process immediately and append
+            try:
+                result = process_one_file(local_path)
+            except Exception as e:
+                result = {
+                    "file": os.path.basename(local_path),
+                    "absolute_path": os.path.abspath(local_path),
+                    "generated_at": datetime.now().isoformat(timespec="seconds"),
+                    "error": str(e)
+                }
+            write_jsonl_line(fp, result)
+            processed += 1
+
+            if processed % 10 == 0:
+                print(f"   …processed {processed}/{len(names)}")
+
+    # finalize single JSON
+    jsonl_to_json_array(tmp_jsonl, out_json)
+    print(f"\n✅ Saved single aggregated JSON → {out_json}")
+    print(f"ℹ️ Temp per-file JSONL kept for debugging → {tmp_jsonl}")
+
+if __name__ == "__main__":
+    main()
