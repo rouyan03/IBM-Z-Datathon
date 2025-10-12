@@ -21,6 +21,8 @@ Note you will not be authenticated as secrets.toml has not been pushed, with det
 here is also a link to a published version of the final website, hosted on Streamlit Community Cloud.
 https://ibm-z-25-eunomia-ai.streamlit.app/
 
+check out "main [serverless].ipynb" to view the RL training process using the ART library.
+
 
 ---
 
