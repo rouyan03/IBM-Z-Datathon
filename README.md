@@ -14,6 +14,12 @@ Our solution is to build an AI-powered legal assistant using Retrieval-Augmented
 
 ---
 
+Datasets on HuggingFace:
+- Standardised XML source Data: https://huggingface.co/datasets/Xixi679/SupremeCourtJudgementCase_Data/tree/main
+- Synthetic Data: https://huggingface.co/datasets/shng2025/IBM-Z-trail-1
+
+---
+
 Team Members:
 - Shi Hao Ng (Leader)
 - Ryan Deng
